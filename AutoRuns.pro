@@ -10,9 +10,9 @@ LIBS += \
         -lgdi32 \
         -lcrypt32 \
         -lwintrust \
-         -ltaskschd \
-        -lcomsupp
-
+        -ltaskschd \
+        -lcomsupp \
+        -lshlwapi
 # The following define makes your compiler emit warnings if you use
 # any Qt feature that has been marked deprecated (the exact warnings
 # depend on your compiler). Please consult the documentation of the
@@ -33,6 +33,7 @@ HEADERS += \
     Description.h \
     FileExists.h \
     Publisher.h \
+    ReadDlls.h \
     RegRead.h \
     StringConvert.h \
     Tasks.h \

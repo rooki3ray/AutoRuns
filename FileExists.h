@@ -11,19 +11,19 @@
 //{
 //      WIN32_FIND_DATA FindFileData;
 //      HANDLE hFind;
-////      printf ("Target file is %s. ", argv[1]);
+//      printf ("Target file is %s. ", argv[1]);
 //      hFind = FindFirstFile(L"c:\\Windows\\System32\\drivers\\ndis.sys", &FindFileData);
 //      if (hFind == INVALID_HANDLE_VALUE)
 //      {
-////           printf ("Invalid File Handle. Get Last Error reports %d ", GetLastError ());
-////            qDebug()<<"NOT";
+//           printf ("Invalid File Handle. Get Last Error reports %d ", GetLastError ());
+//            qDebug()<<"NOT";
 //          return 0;
 //      }
 //      else
 //      {
-////          qDebug()<<"YES";
+//          qDebug()<<"YES";
 
-////           printf ("The first file found is %s ", FindFileData.cFileName);
+//           printf ("The first file found is %s ", FindFileData.cFileName);
 //          FindClose(hFind);
 //          return 1;
 //      }
@@ -32,7 +32,7 @@
 int fileExists(char* filepath)
 {
    /* Check for existence */
-   if( (_access(filepath, 0 )) != -1 )
+   if( !(_access(filepath, 0 )) )
    {
 //      printf( "File exists " );
       return 1;

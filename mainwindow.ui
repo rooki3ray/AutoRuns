@@ -254,7 +254,7 @@
      <string>Drivers</string>
     </property>
    </widget>
-   <widget class="QTableWidget" name="tableWidget_knownddls">
+   <widget class="QTableWidget" name="tableWidget_knowndlls">
     <property name="geometry">
      <rect>
       <x>0</x>
@@ -318,7 +318,7 @@
      </property>
     </column>
    </widget>
-   <widget class="QPushButton" name="Knownddls">
+   <widget class="QPushButton" name="Knowndlls">
     <property name="geometry">
      <rect>
       <x>310</x>
@@ -328,7 +328,7 @@
      </rect>
     </property>
     <property name="text">
-     <string>Knownddls</string>
+     <string>Knowndlls</string>
     </property>
    </widget>
    <widget class="QLabel" name="version">
@@ -400,8 +400,8 @@
     <property name="geometry">
      <rect>
       <x>40</x>
-      <y>650</y>
-      <width>251</width>
+      <y>680</y>
+      <width>931</width>
       <height>21</height>
      </rect>
     </property>
@@ -409,11 +409,11 @@
      <string/>
     </property>
    </widget>
-   <widget class="QLabel" name="company">
+   <widget class="QLabel" name="publisher">
     <property name="geometry">
      <rect>
       <x>40</x>
-      <y>680</y>
+      <y>650</y>
       <width>251</width>
       <height>21</height>
      </rect>
@@ -453,7 +453,7 @@
    <widget class="QTableWidget" name="tableWidget_tasks">
     <property name="geometry">
      <rect>
-      <x>-10</x>
+      <x>0</x>
       <y>30</y>
       <width>1221</width>
       <height>581</height>

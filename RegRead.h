@@ -18,7 +18,7 @@ struct KEY_VALUE
 {
     TCHAR key[MAX_KEY_LENGTH];
     BYTE value[MAX_VALUE_NAME];
-
+    BYTE type[1];
     int keylen;
     int valuelen;
 };
@@ -28,7 +28,7 @@ void GetGroupKeyValue(HKEY hKey, LPCSTR lpSubKey, KEY_VALUE* list, int* length);
 
 bool QueryKey(HKEY hKey, KEY_VALUE* list, int* length, int mode)
 {
-    TCHAR achKey[MAX_KEY_LENGTH];        // buffer for subkey name
+//    TCHAR achKey[MAX_KEY_LENGTH];        // buffer for subkey name
     DWORD cbName;                        // size of name string
     TCHAR achClass[MAX_PATH] = TEXT(""); // buffer for class name
     DWORD cchClassName = MAX_PATH;       // size of class string
@@ -43,8 +43,8 @@ bool QueryKey(HKEY hKey, KEY_VALUE* list, int* length, int mode)
 
     DWORD i, retCode;
 
-    TCHAR achValue[MAX_VALUE_NAME];
-    BYTE achData[MAX_VALUE_NAME];
+//    TCHAR achValue[MAX_VALUE_NAME];
+//    BYTE achData[MAX_VALUE_NAME];
     DWORD cchValue = MAX_VALUE_NAME;
     DWORD cchData = MAX_VALUE_NAME;
     DWORD Type;
@@ -118,7 +118,9 @@ bool QueryKey(HKEY hKey, KEY_VALUE* list, int* length, int mode)
         if (cValues)
         {
             KEY_VALUE *tmp_kv = new KEY_VALUE [cValues];
-            int index = -1;
+            int index_description = -1,
+                index_imagepath = -1,
+                index_type = -1;
             for (i = 0, retCode = ERROR_SUCCESS; i < cValues; i++)
             {
                 cchData = MAX_VALUE_NAME;
@@ -143,28 +145,53 @@ bool QueryKey(HKEY hKey, KEY_VALUE* list, int* length, int mode)
 //                qDebug()<<key1<<value1;
                 std::string start = "Start";
                 std::string imagepath = "ImagePath";
+                std::string description = "Description";
+                std::string type = "Type";
                 std::string::size_type idx = tmp.find(start);
                 std::string::size_type idx2 = tmp.find(imagepath);
+                std::string::size_type idx3 = tmp.find(description);
+                std::string::size_type idx4 = tmp.find(type);
+
                 if (idx != std::string::npos && tmp_kv[i].value[0] <= 2)
                 {
-//                    qDebug()<<key1<<tmp_kv[i].value[0] ;
                     autorunsFlag = 1;
                 }
                 if (idx2 != std::string::npos)
                 {
-                    index = i;
+                    index_imagepath = i;
+                }
+                if (idx3 != std::string::npos)
+                {
+                    index_description = i;
+                }
+                if (idx4 != std::string::npos)
+                {
+                    index_type = i;
                 }
             }
-            if(autorunsFlag && index > 0)
+            if(autorunsFlag && index_imagepath > 0)
             {
-                list[*length].valuelen = tmp_kv[index].valuelen;
-//                QString a ="";
-                for(int j = 0; j < tmp_kv[index].valuelen; j++)
+                if (index_type > 0)
                 {
-                    list[*length].value[j] = tmp_kv[index].value[j];
-//                    a += ((char)tmp_kv[index].value[j]);
+                    list[*length].type[0] = tmp_kv[index_type].value[0];
                 }
-//                qDebug()<<"----------------------------"<<a;
+                if (index_description > 0 && ((char)tmp_kv[index_description].value[0]) == '@')      // description的优先级
+                {
+                    list[*length].valuelen = tmp_kv[index_description].valuelen;
+                    for(int j = 0; j < tmp_kv[index_description].valuelen; j++)
+                    {
+                        list[*length].value[j] = tmp_kv[index_description].value[j];
+                    }
+                }
+                else
+                {
+                    list[*length].valuelen = tmp_kv[index_imagepath].valuelen;
+                    for(int j = 0; j < tmp_kv[index_imagepath].valuelen; j++)
+                    {
+                        list[*length].value[j] = tmp_kv[index_imagepath].value[j];
+                    }
+                }
+
                 *length += 1;
                 delete [] tmp_kv;
                 return 1;
@@ -175,7 +202,6 @@ bool QueryKey(HKEY hKey, KEY_VALUE* list, int* length, int mode)
         return 0;
     }
 }
-
 
 void GetKeyValue(HKEY hKey, LPCSTR lpSubKey, KEY_VALUE* list, int* length)
 {

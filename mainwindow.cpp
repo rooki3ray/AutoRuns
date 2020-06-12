@@ -4,14 +4,16 @@
 #include "CheckSignitures.h"
 #include "Publisher.h"
 #include "Tasks.h"
+#include "ReadDlls.h"
 #include "FileExists.h"
+#include "StringConvert.h"
 #include "ui_mainwindow.h"
 #define logon { "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",\
                 "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\\Run",\
                 "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce",\
                 "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnceEx"}
 #define services1 "System\\CurrentControlSet\\Services"
-#define knownddls1 "System\\CurrentControlSet\\Control\\Session Manager\\KnownDlls"
+#define knowndlls1 "System\\CurrentControlSet\\Control\\Session Manager\\KnownDlls"
 AutoRuns::AutoRuns(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::AutoRuns)
@@ -22,11 +24,13 @@ AutoRuns::AutoRuns(QWidget *parent)
      *               图标： https://blog.csdn.net/qqwangfan/article/details/51735989
      *               行列操作： https://blog.csdn.net/weixin_43245453/article/details/96591959 */
     ui->setupUi(this);
+    QTextCodec::setCodecForLocale(QTextCodec::codecForName("UTF-8"));   // 防止中文乱码
+
     button[2] = ui->Logon;
     button[3] = ui->Services;
     button[4] = ui->Drivers;
     button[5] = ui->Tasks;
-    button[6] = ui->Knownddls;
+    button[6] = ui->Knowndlls;
     for (int i = 2; i <= 6; i++)
     {
         button[i]->setStyleSheet( "border:none; background-color:transparent;" );
@@ -44,14 +48,14 @@ AutoRuns::AutoRuns(QWidget *parent)
     ui->stack->addWidget(ui->tableWidget_services);
     ui->stack->addWidget(ui->tableWidget_drivers);
     ui->stack->addWidget(ui->tableWidget_tasks);
-    ui->stack->addWidget(ui->tableWidget_knownddls);
+    ui->stack->addWidget(ui->tableWidget_knowndlls);
     ui->stack->setCurrentIndex(2);
     ui->stack->show();
     initTableColumnWidth(ui->tableWidget_logon);
     initTableColumnWidth(ui->tableWidget_services);
     initTableColumnWidth(ui->tableWidget_drivers);
     initTableColumnWidth(ui->tableWidget_tasks);
-    initTableColumnWidth(ui->tableWidget_knownddls);
+    initTableColumnWidth(ui->tableWidget_knowndlls);
 
     foreach(QString path, QStringList logon)
     {
@@ -60,7 +64,7 @@ AutoRuns::AutoRuns(QWidget *parent)
     }
     initTableServiceDrivers(ui->tableWidget_services, ui->tableWidget_drivers, HKLM, QString(services1));
     initTableTasks(ui->tableWidget_tasks);
-    initTableKnownddls(ui->tableWidget_knownddls, HKLM, QString(knownddls1));
+    initTableKnowndlls(ui->tableWidget_knowndlls, HKLM, QString(knowndlls1));
 }
 
 AutoRuns::~AutoRuns()
@@ -70,6 +74,18 @@ AutoRuns::~AutoRuns()
 
 void AutoRuns::SetTableItem(QTableWidget* t, QString str, QString value, int *rowIndex)
 {
+    QString description,Sig,publisher;
+    bool dllDesSuc = 0,
+            desSuc = 0,
+            pubSuc = 0;
+    if (value.startsWith("@"))
+    {
+        TCHAR description_tchar[1024];
+        dllDesSuc = ReadDllDescription(description_tchar, value.toStdWString().c_str());
+        description = (dllDesSuc) ? QString::fromWCharArray(description_tchar) : "----------";
+    }
+
+    imagePath_std(&value);
 //    QProcess process;
 //    QString cmd = QString("e:/SysinternalsSuite/sigcheck64.exe \"") + value.toLocal8Bit().data() + QString("\"");
 //    process.start(cmd);
@@ -78,61 +94,60 @@ void AutoRuns::SetTableItem(QTableWidget* t, QString str, QString value, int *ro
 //    QString msg_result = QString::fromLocal8Bit(result);
     t->setRowCount(*rowIndex+1);//总行数增加1
     t->setRowHeight(*rowIndex, 20);
-    const wchar_t * filepath = reinterpret_cast<const wchar_t *>(value.utf16());    // 将QString转换为LPCTSTR(const wchar_t *)
+    const wchar_t * filepath = QSTRING_LPCTSTR(value);    // 将QString转换为LPCTSTR(const wchar_t *)
 
     wchar_t filepath2[1024];        // 将QString转换为TCHAR *(wchar_t *)
     wcscpy_s(reinterpret_cast<wchar_t*>(filepath2),
         sizeof(filepath2) / sizeof(wchar_t),
         reinterpret_cast<const wchar_t*>(value.utf16()));
 
-    const char* std_str = value.toStdString().data();
-    char buf[4096] = {0};
-    strcpy(buf, std_str);
-    int exists = fileExists(buf);
+//    const char* std_str = value.toStdString().data();
+//    char buf[4096] = {0};
+//    strcpy(buf, std_str);
+//    int exists = fileExists(buf);
 
-    if (exists)
+//    if (!exists)
+//    {
+//        t->setItem(*rowIndex, 0, new QTableWidgetItem(" "));
+//        t->setItem(*rowIndex, 1, new QTableWidgetItem(str.toLocal8Bit().data()));
+//        t->setItem(*rowIndex, 2, new QTableWidgetItem("File Not Found:"+value));
+//        t->setSpan(*rowIndex, 2, 1, 4);
+//        t->item(*rowIndex, 2)->setBackgroundColor(QColor(240,240,0));
+//    }
+//    else
+//    {
+    QFileInfo file_info(value.toLocal8Bit().data());
+    QString time = file_info.created().toString("yyyy-MM-dd hh:mm:ss");
+    QFileIconProvider icon_provider;
+    QIcon icon = icon_provider.icon(file_info);    //获取图标
+    if (!dllDesSuc)
     {
-//        qDebug()<<"NOT";
-        t->setItem(*rowIndex, 0, new QTableWidgetItem(" "));
-        t->setItem(*rowIndex, 1, new QTableWidgetItem(str.toLocal8Bit().data()));
-        t->setItem(*rowIndex, 2, new QTableWidgetItem("File Not Found:"+value));
-        t->setSpan(*rowIndex, 2, 1, 4);
-        t->item(*rowIndex, 2)->setBackgroundColor(QColor(240,240,0));
-    }
-    else
-    {
-        QFileInfo file_info(value.toLocal8Bit().data());
-        QString time = file_info.created().toString("yyyy-MM-dd hh:mm:ss");
-        QFileIconProvider icon_provider;
-        QIcon icon = icon_provider.icon(file_info);    //获取图标
-
         TCHAR* ptszStr = new TCHAR[1024];   //获取文件描述
-        bool dessuc = GetFileVersionString(filepath, _T("FileDescription"), ptszStr, 1024);
-        QString description;
-        description = (dessuc) ? QString::fromWCharArray(ptszStr) : "----------";
+        desSuc = GetFileVersionString(filepath, _T("FileDescription"), ptszStr, 1024);
+        description = (desSuc) ? QString::fromWCharArray(ptszStr) : "----------";
+        delete [] ptszStr;
+    }
 
-        bool Verified = VerifyEmbeddedSignature(filepath);  //获取签名信息
-        QString Sig = (Verified)? "(Verified) " : "(Not Verified) ";
+    bool Verified = VerifyEmbeddedSignature(filepath);  //获取签名信息
+    Sig = (Verified)? "(Verified) " : "(Not Verified) ";
 
-        LPTSTR ptStr = NULL;
-        bool pubsuc = Publisher(filepath2, &ptStr);
-        QString publisher;
-        publisher = (pubsuc) ? QString::fromWCharArray(ptStr) : "-----------";
+    wchar_t* ptStr = NULL;
+    pubSuc = Publisher(filepath2, &ptStr);
+    publisher = (pubSuc) ? QString::fromWCharArray(ptStr) : "-----------";
 //        _tprintf(_T("\n------------Subject Name: %s\n"), ptStr);
 //        qDebug()<<value<<publisher;
 
-        t->setItem(*rowIndex, 0, new QTableWidgetItem(icon, " "));
-        t->setItem(*rowIndex, 1, new QTableWidgetItem(str.toLocal8Bit().data()));
-        t->setItem(*rowIndex, 2, new QTableWidgetItem(description.toLocal8Bit().data()));
-        t->setItem(*rowIndex, 3, new QTableWidgetItem((Sig + publisher).toLocal8Bit().data()));
-        t->setItem(*rowIndex, 4, new QTableWidgetItem(value.toLocal8Bit().data()));
-        t->setItem(*rowIndex, 5, new QTableWidgetItem(time));
+    t->setItem(*rowIndex, 0, new QTableWidgetItem(icon, " "));
+    t->setItem(*rowIndex, 1, new QTableWidgetItem(str.toLocal8Bit().data()));
+    t->setItem(*rowIndex, 2, new QTableWidgetItem(description.toLocal8Bit().data()));
+    t->setItem(*rowIndex, 3, new QTableWidgetItem((Sig + publisher)));
+    t->setItem(*rowIndex, 4, new QTableWidgetItem(value.toLocal8Bit().data()));
+    t->setItem(*rowIndex, 5, new QTableWidgetItem(time));
 
-        if (!Verified)
-            for (int i = 1; i <= 5; i++)
-               t->item(*rowIndex, i)->setBackgroundColor(QColor(255,208,208));
-        delete [] ptszStr;
-    }
+    if (!Verified)
+        for (int i = 1; i <= 5; i++)
+           t->item(*rowIndex, i)->setBackgroundColor(QColor(255,208,208));
+//    }
     *rowIndex += 1;
 }
 
@@ -186,7 +201,6 @@ void AutoRuns::initTableLogon(QTableWidget* t, HKEY hKey, QString PATH)
              flag = 1;
          }
          QString value = result[1][result[0].indexOf(str)];         //Qt方法则改为：QString value=settings->value(str).toString();
-         imagePath_std(&value);
          SetTableItem(t, str, value, &rowIndex);
          t->selectRow(0);
     }
@@ -199,7 +213,7 @@ void AutoRuns::initTableServiceDrivers(QTableWidget* t_services, QTableWidget* t
 {
     KEY_VALUE *list = new KEY_VALUE[2048];
     int length = 0;
-    QStringList result[2];
+    QStringList result[3];
     GetGroupKeyValue(hKey, PATH.toLocal8Bit(), list, &length);
     for (int i = 0; i < length; i++)
     {
@@ -215,6 +229,8 @@ void AutoRuns::initTableServiceDrivers(QTableWidget* t_services, QTableWidget* t
             value += ((char)list[i].value[j]);
         }
         result[1]<<value;
+        result[2]<<QString::number(list[i].type[0]);
+//        qDebug()<<QString::number(list[i].type[0]);
 //        qDebug()<<i<<key.toLocal8Bit()<<value.toLocal8Bit().data();
     }
     int rowIndex_s = t_services->rowCount();
@@ -235,24 +251,22 @@ void AutoRuns::initTableServiceDrivers(QTableWidget* t_services, QTableWidget* t
     {
 //        qDebug()<<group;
         QString value = result[1][result[0].indexOf(group)];         //Qt方法则改为：QString v=settings->value(str).toString();
-        if(!value.contains("ERROR!"))
+        QString type = result[2][result[0].indexOf(group)];
+
+        QTableWidget* t;
+        int* rowIndex;
+        if (type == "1" || type == "2" || type == "8")
         {
-            imagePath_std(&value);
-            QTableWidget* t;
-            int* rowIndex;
-            if (value.contains("system32\\drivers\\", Qt::CaseInsensitive))
-            {
-                t = t_drivers;
-                rowIndex = &rowIndex_d;
-            }
-            else
-            {
-                t = t_services;
-                rowIndex = &rowIndex_s;
-            }
-            SetTableItem(t, group, value, rowIndex);
-            t->selectRow(0);
+            t = t_drivers;
+            rowIndex = &rowIndex_d;
         }
+        else if (type == "16" || type == "32" || type == "256")
+        {
+            t = t_services;
+            rowIndex = &rowIndex_s;
+        }
+        SetTableItem(t, group, value, rowIndex);
+        t->selectRow(0);
     }
 //    foreach(QString group,settings->childGroups())
 //    {   // 遍历该注册表的子目录
@@ -314,7 +328,6 @@ void AutoRuns::initTableTasks(QTableWidget* t)
         QString imagePath = QString::fromLocal8Bit(list[i].imagePath);
 //        qDebug()<<(folderName+"\\"+taskName).toLocal8Bit().data()<<imagePath.toLocal8Bit().data();
 
-        imagePath_std(&imagePath);
         SetTableItem(t, folderName+"\\"+taskName, imagePath, &rowIndex);
 //        printf("%s\t%s\t%s\n", list[i].folderName, list[i].taskName, list[i].imagePath);
     }
@@ -323,7 +336,7 @@ void AutoRuns::initTableTasks(QTableWidget* t)
     delete [] list;
 }
 
-void AutoRuns::initTableKnownddls(QTableWidget* t, HKEY hKey, QString PATH)
+void AutoRuns::initTableKnowndlls(QTableWidget* t, HKEY hKey, QString PATH)
 {
     KEY_VALUE *list = new KEY_VALUE[100];
     int length = 0;
@@ -380,13 +393,16 @@ void AutoRuns::imagePath_std(QString* value)
     /*注册表value标准化：
         注册表中的value可能会带有命令参数、系统变量等，不能直接读取对应的文件
         该函数将其标准化为一个文件路径（QString）*/
-//    if (value->length()==0)
-//        return;
-    if (value->indexOf(" -")>=0)    //部分注册表value/task ImagePath后跟有 -[command],需要剔除
+    if (value->indexOf("@") == 0)
+    {
+        *value = value->split("@")[1];
+        *value = value->split(",-")[0];
+    }
+    if (value->indexOf(" -") >= 0)    //部分注册表value/task ImagePath后跟有 -[command],需要剔除
         *value = value->split(" -")[0];
-    if (value->indexOf(" /")>=0)    //部分注册表value/task ImagePath后跟有 /[command],需要剔除
+    if (value->indexOf(" /") >= 0)    //部分注册表value/task ImagePath后跟有 /[command],需要剔除
         *value = value->split(" /")[0];
-    if(value->indexOf("\"")>=0)     //部分注册表value/task ImagePath已被""包括
+    if(value->indexOf("\"") >= 0)     //部分注册表value/task ImagePath已被""包括
         *value = value->split("\"")[1];
     if(value->contains("%systemroot%", Qt::CaseInsensitive))
         *value = value->replace(value->indexOf("%systemroot%", 0, Qt::CaseInsensitive), 12, "C:\\Windows");
@@ -424,7 +440,8 @@ void AutoRuns::on_Tasks_clicked()
 {
     btn_table_switch(5);
 }
-void AutoRuns::on_Knownddls_clicked()
+
+void AutoRuns::on_Knowndlls_clicked()
 {
     btn_table_switch(6);
 }
@@ -457,15 +474,16 @@ void AutoRuns::on_tableWidget_drivers_itemClicked(QTableWidgetItem *item)
     show_info(ui->tableWidget_drivers, item);
 }
 
-void AutoRuns::on_tableWidget_knownddls_itemClicked(QTableWidgetItem *item)
+void AutoRuns::on_tableWidget_knowndlls_itemClicked(QTableWidgetItem *item)
 {
-    show_info(ui->tableWidget_knownddls, item);
+    show_info(ui->tableWidget_knowndlls, item);
 }
 
 void AutoRuns::on_tableWidget_tasks_itemClicked(QTableWidgetItem *item)
 {
     show_info(ui->tableWidget_tasks, item);
 }
+
 void AutoRuns::show_info(QTableWidget* t, QTableWidgetItem *item)
 {
     int row = item->row();
@@ -483,13 +501,9 @@ void AutoRuns::show_info(QTableWidget* t, QTableWidgetItem *item)
             ui->icon->setIcon(t->item(row,0)->icon());
             ui->name->setText(t->item(row,1)->text());
             ui->description->setText(t->item(row,2)->text());
-            ui->company->setText(t->item(row,3)->text());
+            ui->publisher->setText(t->item(row,3)->text());
             ui->path->setText(t->item(row,4)->text());
             ui->size->setText("Size:    "+b);
             ui->time->setText("Time:    "+t->item(row,5)->text());
     }
 }
-
-
-
-
