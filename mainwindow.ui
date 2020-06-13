@@ -10,6 +10,12 @@
     <height>777</height>
    </rect>
   </property>
+  <property name="maximumSize">
+   <size>
+    <width>1221</width>
+    <height>777</height>
+   </size>
+  </property>
   <property name="windowTitle">
    <string>AutoRuns</string>
   </property>
