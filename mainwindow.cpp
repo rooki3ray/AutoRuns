@@ -11,7 +11,8 @@
 #define logon { "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",\
                 "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\\Run",\
                 "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce",\
-                "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnceEx"}
+                "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnceEx", \
+                "SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Run"}
 #define services1 "System\\CurrentControlSet\\Services"
 #define knowndlls1 "System\\CurrentControlSet\\Control\\Session Manager\\KnownDlls"
 AutoRuns::AutoRuns(QWidget *parent)
